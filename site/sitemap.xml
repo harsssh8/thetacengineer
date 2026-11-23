@@ -7,6 +7,5 @@
   <url><loc>https://www.example.com/cases/</loc></url>
   <url><loc>https://www.example.com/projects/</loc></url>
   <url><loc>https://www.example.com/contact</loc></url>
-  <url><loc>https://www.example.com/cases/case-001-nginx-intermittent-502</loc></url>
   <url><loc>https://www.example.com/labs/tcp-handshake-analysis</loc></url>
 </urlset>
