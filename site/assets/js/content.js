@@ -141,16 +141,17 @@ window.LABS = [
 
 /* ----------------------- TROUBLESHOOTING CASE STUDIES -------------------- */
 window.CASES = [
-  {
-    id: "CASE-001",
-    title: "Intermittent 502 Errors Behind an Nginx Reverse Proxy",
-    url: "cases/case-001-nginx-intermittent-502.html",
-    category: "linux",
-    date: "2026-11-18",
-    excerpt: "Roughly 0.5% of API requests fail with 502 under light load, never under heavy load. A keep-alive timeout race between Nginx and the upstream.",
-    tags: ["Nginx", "TCP/IP", "Linux"],
-    demo: true
-  }
+  // Add your case studies here (fictional or fully sanitised only). Example:
+  // {
+  //   id: "CASE-001",
+  //   title: "My Case Title",
+  //   url: "cases/case-001-short-name.html",
+  //   category: "linux",              // networking | f5 | linux | cloud
+  //   date: "2026-11-23",
+  //   excerpt: "One or two sentences for the case card.",
+  //   tags: ["Nginx", "TCP/IP"],
+  //   demo: false
+  // },
 ];
 
 /* -------------------------------- PROJECTS ------------------------------- */
