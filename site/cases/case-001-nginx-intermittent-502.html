@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js" data-root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CASE-001: Intermittent 502 Errors Behind an Nginx Reverse Proxy | The TAC Engineer</title>
+  <meta name="description" content="Roughly 0.5% of API requests fail with 502 under light load, never under heavy load. A keep-alive timeout race between Nginx and the upstream.">
+  <meta property="og:title" content="CASE-001: Intermittent 502 Errors Behind an Nginx Reverse Proxy | The TAC Engineer">
+  <meta property="og:description" content="Roughly 0.5% of API requests fail with 502 under light load, never under heavy load. A keep-alive timeout race between Nginx and the upstream.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#0B1424">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="../index.html" aria-label="The TAC Engineer — home"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#17263B"/><g stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round"><path d="M16 9v6M16 15l-6 6M16 15l6 6"/></g><circle cx="16" cy="8" r="3" fill="#3B82F6"/><circle cx="9" cy="22.5" r="2.6" fill="#E6EDF7"/><circle cx="23" cy="22.5" r="2.6" fill="#E6EDF7"/></svg><span class="brand-name">The <span>TAC</span> Engineer</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Menu
+    </button>
+    <nav class="site-nav" id="site-nav" aria-label="Main">
+      <ul><li><a href="../index.html">Home</a></li><li><a href="../about.html">About</a></li><li><a href="../articles/index.html">Technical Articles</a></li><li><a href="../labs/index.html">Hands-on Labs</a></li><li><a href="../cases/index.html" aria-current="page">Troubleshooting Cases</a></li><li><a href="../projects/index.html">Projects</a></li><li><a href="../contact.html">Contact</a></li></ul>
+    </nav>
+  </div>
+</header>
+<main id="main">
+<header class="page-header">
+  <div class="container">
+    <nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Home</a><span aria-hidden="true">/</span><a href="../cases/index.html">Troubleshooting Cases</a></nav>
+    <h1>CASE-001: Intermittent 502 Errors Behind an Nginx Reverse Proxy</h1>
+    <p>Roughly 0.5% of API requests fail with 502 under light load, never under heavy load. A keep-alive timeout race between Nginx and the upstream.</p>
+    <div class="meta-row"><span>Linux &amp; Infrastructure</span><span>·</span><time datetime="2026-11-18">18 Nov 2026</time><span>·</span><span>10 min read</span><span>·</span><span class="badge badge-demo">Fictional case</span></div>
+  </div>
+</header>
+<div class="container">
+  <div class="doc-layout">
+    <aside class="toc" aria-label="On this page"><h2>On this page</h2><ol data-toc></ol></aside>
+    <article class="prose" data-toc-source>
+      <div class="demo-banner" role="note"><strong>Fictional case.</strong><span>This case study is a constructed, sanitised scenario used to demonstrate a TAC-style investigation. It is not a real production incident and contains no customer or employer data.</span></div>
+      <dl class="fact-sheet"><div><dt>Case ID</dt><dd>CASE-001</dd></div><div><dt>Severity</dt><dd>S3 — partial degradation</dd></div><div><dt>Product area</dt><dd>Nginx reverse proxy</dd></div><div><dt>Status</dt><dd>Resolved</dd></div><div><dt>Type</dt><dd>Fictional / demonstration</dd></div></dl><h2><span class="num">01</span>Problem statement</h2>
+<p>Approximately 0.5% of API requests through the Nginx reverse proxy fail with HTTP 502 Bad Gateway. Failures happen mostly outside business hours and almost never at peak load.</p>
+<h2><span class="num">02</span>Environment</h2>
+<div class="table-wrap"><table><thead><tr><th scope="col">Component</th><th scope="col">Detail</th></tr></thead><tbody><tr><td>Reverse proxy</td><td>Nginx 1.24 on Ubuntu 22.04 — <code>api.example.internal</code></td></tr><tr><td>Upstream</td><td>Two Node.js 20 API instances, 10.0.8.21:3000 and 10.0.8.22:3000</td></tr><tr><td>Proxy config</td><td><code>upstream</code> block with <code>keepalive 32</code>, <code>proxy_http_version 1.1</code>, <code>proxy_set_header Connection ""</code></td></tr><tr><td>Recent change</td><td>Upstream keep-alive enabled on the proxy one week before the first report</td></tr></tbody></table></div>
+<h2><span class="num">03</span>Reported symptoms</h2>
+<ul>
+<li>Client applications intermittently receive <code>502 Bad Gateway</code>.</li>
+<li>Retrying the same request immediately succeeds.</li>
+<li>Error rate is higher at night and at weekends.</li>
+</ul>
+<h2><span class="num">04</span>Initial observations</h2>
+<ul>
+<li>Both upstream instances are healthy. CPU, memory and event-loop latency are normal.</li>
+<li>Node.js application logs contain <strong>no record</strong> of the failed requests. They did not reach the application.</li>
+<li>The start of the errors lines up with the keep-alive change.</li>
+<li><strong>Inverse load correlation</strong>: fewer requests, more errors. This points to an idle timer rather than capacity.</li>
+</ul>
+<h2><span class="num">05</span>Investigation steps</h2>
+<ol class="steps">
+<li><strong>Quantify and classify the errors</strong> in the access log by method, upstream and time.</li>
+<li><strong>Read the Nginx error log</strong> for the matching timestamps.</li>
+<li><strong>Compare idle timeouts</strong> on both sides of the upstream connection.</li>
+<li><strong>Capture proxy ↔ upstream traffic</strong> and find a failing connection.</li>
+<li><strong>Form one hypothesis that explains every symptom,</strong> including why GET requests are unaffected.</li>
+</ol>
+<h2><span class="num">06</span>Commands executed</h2>
+<div class="code-block"><div class="code-head"><span>bash — proxy host</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-bash"># 502s by HTTP method (combined log format: $6 = &quot;METHOD)
+awk &#x27;$9 == 502 {print $6}&#x27; /var/log/nginx/access.log | sort | uniq -c
+
+# Matching error log entries
+grep -E &quot;prematurely closed|reset by peer&quot; /var/log/nginx/error.log | tail -n 5
+
+# Upstream keep-alive configuration on the proxy
+nginx -T 2&gt;/dev/null | grep -nE &quot;upstream|keepalive&quot;
+
+# Node.js idle timeout (default 5000 ms unless set)
+node -e &quot;console.log(require(&#x27;http&#x27;).createServer().keepAliveTimeout)&quot;
+
+# Capture proxy ↔ upstream traffic
+sudo tcpdump -i ens160 -nn -w upstream.pcap &#x27;host 10.0.8.21 and port 3000&#x27;</code></pre></div>
+<h2><span class="num">07</span>Evidence collected</h2>
+<div class="code-block"><div class="code-head"><span>output — fictional</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-text">$ awk &#x27;$9 == 502 {print $6}&#x27; /var/log/nginx/access.log | sort | uniq -c
+    212 &quot;POST
+      9 &quot;PATCH
+
+$ grep -E &quot;prematurely closed|reset by peer&quot; /var/log/nginx/error.log | tail -n 1
+2026/11/16 09:14:27 [error] 1187#1187: *48213 upstream prematurely closed connection while reading response header from upstream, client: 10.0.5.31, server: api.example.internal, request: &quot;POST /v1/orders HTTP/1.1&quot;, upstream: &quot;http://10.0.8.21:3000/v1/orders&quot;, host: &quot;api.example.internal&quot;
+
+$ node -e &quot;console.log(require(&#x27;http&#x27;).createServer().keepAliveTimeout)&quot;
+5000</code></pre></div><div class="table-wrap"><table><thead><tr><th scope="col">Side</th><th scope="col">Idle keep-alive timeout</th><th scope="col">Source</th></tr></thead><tbody><tr><td>Nginx → upstream</td><td>60 s</td><td><code>keepalive_timeout</code> in the upstream context, default</td></tr><tr><td>Node.js server</td><td>5 s</td><td><code>server.keepAliveTimeout</code>, default</td></tr></tbody></table></div>
+<h2><span class="num">08</span>Packet / log analysis</h2>
+<figure><div class="diagram"><svg viewBox="0 0 710 335" role="img" aria-label="Sequence: Node.js closes an idle keep-alive connection after 5 seconds while Nginx sends a new request on it, producing a reset and a 502." xmlns="http://www.w3.org/2000/svg" font-family="Inter,Arial,sans-serif"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2563EB"/></marker><marker id="arr-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#B91C1C"/></marker></defs><rect x="40" y="10" width="150" height="40" rx="7" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5"/><text x="115.0" y="35.0" text-anchor="middle" font-size="13" font-weight="600" fill="#172033">Nginx proxy</text><rect x="520" y="10" width="150" height="40" rx="7" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5"/><text x="595.0" y="35.0" text-anchor="middle" font-size="13" font-weight="600" fill="#172033">Node.js :3000</text><line x1="115" y1="50" x2="115" y2="330" stroke="#CBD5E1" stroke-width="1.5"/><line x1="595" y1="50" x2="595" y2="330" stroke="#CBD5E1" stroke-width="1.5"/><line x1="115" y1="80" x2="593" y2="80" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arr)"/><text x="355" y="73" text-anchor="middle" font-size="11" fill="#2563EB" font-weight="400" font-family="ui-monospace,Menlo,monospace">t=0.000  POST /v1/orders (keep-alive)</text><line x1="595" y1="115" x2="117" y2="115" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arr)"/><text x="355" y="108" text-anchor="middle" font-size="11" fill="#2563EB" font-weight="400" font-family="ui-monospace,Menlo,monospace">t=0.042  HTTP/1.1 201 Created</text><line x1="595" y1="165" x2="117" y2="165" stroke="#B91C1C" stroke-width="1.6" marker-end="url(#arr-red)"/><text x="355" y="158" text-anchor="middle" font-size="11" fill="#B91C1C" font-weight="400" font-family="ui-monospace,Menlo,monospace">t=5.042  FIN — idle 5 s (keepAliveTimeout)</text><line x1="115" y1="205" x2="593" y2="205" stroke="#B91C1C" stroke-width="1.6" marker-end="url(#arr-red)"/><text x="355" y="198" text-anchor="middle" font-size="11" fill="#B91C1C" font-weight="400" font-family="ui-monospace,Menlo,monospace">t=5.043  POST /v1/orders on the same socket</text><line x1="595" y1="245" x2="117" y2="245" stroke="#B91C1C" stroke-width="1.6" marker-end="url(#arr-red)"/><text x="355" y="238" text-anchor="middle" font-size="11" fill="#B91C1C" font-weight="400" font-family="ui-monospace,Menlo,monospace">t=5.044  RST</text><rect x="30" y="275" width="170" height="40" rx="6" fill="#FEF2F2" stroke="#FECACA"/><text x="115" y="299" text-anchor="middle" font-size="11.5" fill="#B91C1C" font-weight="600">502 to the client</text><text x="420" y="300" text-anchor="middle" font-size="11" fill="#172033" font-weight="400">Proxy reuses a connection the upstream is closing</text></svg></div><figcaption>Figure 1 — Reconstructed from the fictional capture: the upstream closes an idle connection just as the proxy reuses it.</figcaption></figure>
+<p>In the capture, filtering on <code>tcp.flags.fin == 1 || tcp.flags.reset == 1</code> and following the failing stream showed:</p>
+<ol>
+<li>A request completes at t=0.042 s and the connection returns to Nginx's idle pool.</li>
+<li>At exactly 5.000 s of idle time, Node.js sends a <strong>FIN</strong>.</li>
+<li>Within a millisecond, before Nginx processes the FIN, Nginx writes a new POST on the same socket.</li>
+<li>Node.js answers with <strong>RST</strong>. Nginx logs “upstream prematurely closed connection” and returns 502.</li>
+</ol>
+<div class="callout callout-note" role="note"><span class="callout-title">Why only POST and PATCH?</span><p>When an upstream fails, Nginx retries on the next server only for idempotent methods (<code>proxy_next_upstream</code>; since 1.9.13 non-idempotent requests are not retried by default). GET requests hit the same race but were silently retried. POST and PATCH were not.</p></div>
+<h2><span class="num">09</span>Root cause</h2>
+<p>Nginx kept idle upstream connections for up to 60 seconds, but Node.js closed them after 5 seconds. Whenever Nginx reused a connection at the moment Node.js was closing it, the request was reset. Light traffic made this more likely, because connections sat idle long enough to reach the 5-second timer.</p>
+<h2><span class="num">10</span>Corrective action</h2>
+<div class="code-block"><div class="code-head"><span>nginx — /etc/nginx/conf.d/api.conf</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-nginx">upstream api_backend {
+    server 10.0.8.21:3000;
+    server 10.0.8.22:3000;
+    keepalive 32;
+    keepalive_timeout 4s;   # must be shorter than the upstream&#x27;s 5 s idle timeout
+}</code></pre></div>
+<p>The rule: <strong>the side that reuses connections must give up on them first.</strong> The proxy's idle timeout was set below the upstream's. The same result could be reached by raising Node.js <code>keepAliveTimeout</code> above Nginx's, but changing the proxy needed no application release.</p>
+<div class="code-block"><div class="code-head"><span>bash</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-bash">nginx -t &amp;&amp; systemctl reload nginx</code></pre></div>
+<h2><span class="num">11</span>Validation</h2>
+<ul>
+<li>24 hours after the change: <strong>0</strong> 502 responses in the access log (baseline ≈ 220 per day).</li>
+<li><code>grep -c "prematurely closed" /var/log/nginx/error.log</code> on the rotated log returns 0.</li>
+<li>A new capture shows <strong>Nginx</strong> sending the FIN after 4 s of idle time, so the upstream never closes a connection the proxy might reuse.</li>
+</ul>
+<h2><span class="num">12</span>Technical lessons</h2>
+<ul>
+<li>Intermittent errors that get <em>worse</em> at low load usually involve an idle timer.</li>
+<li>Requests missing from the application log never reached the application. Look at the layer in between.</li>
+<li>Retry behaviour can hide a fault for some methods. Classify errors by method before drawing conclusions.</li>
+<li>For any proxy with connection reuse, compare idle timeouts on both sides.</li>
+</ul>
+      <ul class="tag-list" aria-label="Tags"><li>Nginx</li><li>Node.js</li><li>TCP/IP</li><li>Keep-alive</li><li>HTTP 502</li></ul>
+      <nav class="prev-next" aria-label="More" data-render="prev-next" data-type="cases"></nav>
+    </article>
+  </div>
+</div>
+
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#17263B"/><g stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round"><path d="M16 9v6M16 15l-6 6M16 15l6 6"/></g><circle cx="16" cy="8" r="3" fill="#3B82F6"/><circle cx="9" cy="22.5" r="2.6" fill="#E6EDF7"/><circle cx="23" cy="22.5" r="2.6" fill="#E6EDF7"/></svg><span class="brand-name">The <span>TAC</span> Engineer</span></a>
+        <p class="footer-tagline">Understand the Problem. Analyse the Evidence. Find the Root Cause.</p>
+      </div>
+      <div>
+        <h2>Explore</h2>
+        <ul>
+          <li><a href="../about.html">About</a></li>
+          <li><a href="../articles/index.html">Technical Articles</a></li>
+          <li><a href="../labs/index.html">Labs</a></li>
+          <li><a href="../cases/index.html">Troubleshooting Cases</a></li>
+          <li><a href="../projects/index.html">Projects</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Connect</h2>
+        <ul>
+          <li><a href="../contact.html">Contact</a></li>
+          <li><a href="../contact.html" data-site="linkedin" rel="noopener">LinkedIn</a></li>
+          <li><a href="../contact.html" data-site="github" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> The TAC Engineer. All rights reserved.</span>
+      <span>Examples on this site are fictional or sanitised. No customer or employer data is published.</span>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/content.js"></script>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

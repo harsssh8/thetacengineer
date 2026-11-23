@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js" data-root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>F5 BIG-IP: Pool Member Marked Down by an HTTP Monitor | The TAC Engineer</title>
+  <meta name="description" content="The application answers in a browser, yet BIG-IP marks every pool member down. Why the monitor send string and Host header matter.">
+  <meta property="og:title" content="F5 BIG-IP: Pool Member Marked Down by an HTTP Monitor | The TAC Engineer">
+  <meta property="og:description" content="The application answers in a browser, yet BIG-IP marks every pool member down. Why the monitor send string and Host header matter.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#0B1424">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="../index.html" aria-label="The TAC Engineer — home"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#17263B"/><g stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round"><path d="M16 9v6M16 15l-6 6M16 15l6 6"/></g><circle cx="16" cy="8" r="3" fill="#3B82F6"/><circle cx="9" cy="22.5" r="2.6" fill="#E6EDF7"/><circle cx="23" cy="22.5" r="2.6" fill="#E6EDF7"/></svg><span class="brand-name">The <span>TAC</span> Engineer</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Menu
+    </button>
+    <nav class="site-nav" id="site-nav" aria-label="Main">
+      <ul><li><a href="../index.html">Home</a></li><li><a href="../about.html">About</a></li><li><a href="../articles/index.html" aria-current="page">Technical Articles</a></li><li><a href="../labs/index.html">Hands-on Labs</a></li><li><a href="../cases/index.html">Troubleshooting Cases</a></li><li><a href="../projects/index.html">Projects</a></li><li><a href="../contact.html">Contact</a></li></ul>
+    </nav>
+  </div>
+</header>
+<main id="main">
+<header class="page-header">
+  <div class="container">
+    <nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Home</a><span aria-hidden="true">/</span><a href="../articles/index.html">Technical Articles</a></nav>
+    <h1>F5 BIG-IP: Pool Member Marked Down by an HTTP Monitor</h1>
+    <p>The application answers in a browser, yet BIG-IP marks every pool member down. Why the monitor send string and Host header matter.</p>
+    <div class="meta-row"><span>F5 &amp; Application Delivery</span><span>·</span><time datetime="2026-11-14">14 Nov 2026</time><span>·</span><span>9 min read</span></div>
+  </div>
+</header>
+<div class="container">
+  <div class="doc-layout">
+    <aside class="toc" aria-label="On this page"><h2>On this page</h2><ol data-toc></ol></aside>
+    <article class="prose" data-toc-source>
+      <div class="demo-banner" role="note"><strong>Demonstration content.</strong><span>The environment, addresses and outputs in this article are fictional and were written to illustrate the documentation format. They do not describe a real customer or production incident.</span></div>
+      <h2><span class="num">01</span>Overview</h2>
+
+<p>After two new Nginx web servers are added to a BIG-IP pool, the HTTP health monitor marks both members down and the virtual server goes offline. Browsing directly to the servers works. The cause is an HTTP/1.0 monitor request with no <code>Host</code> header, sent to servers that use name-based virtual hosting.</p>
+
+<h2><span class="num">02</span>Technical Background</h2>
+
+<p>A BIG-IP HTTP monitor opens a TCP connection to each pool member, sends the configured <strong>send string</strong>, and marks the member up only if the response matches the <strong>receive string</strong> (a regular expression) within the timeout.</p>
+<p>Web servers that host several sites on one IP address select the site from the HTTP <code>Host</code> header. HTTP/1.1 requires a Host header (RFC 9112). An HTTP/1.0 request often has none, so the server falls back to its <em>default</em> virtual host — which may return something very different from the real application.</p>
+
+<h2><span class="num">03</span>Environment / Topology</h2>
+<figure><div class="diagram"><svg viewBox="0 0 800 240" role="img" aria-label="BIG-IP virtual server vs_app load balancing to two Nginx pool members, with an HTTP health monitor marking both members down." xmlns="http://www.w3.org/2000/svg" font-family="Inter,Arial,sans-serif"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2563EB"/></marker><marker id="arr-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#B91C1C"/></marker></defs><rect x="10" y="95" width="110" height="56" rx="7" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5"/><text x="65.0" y="121.0" text-anchor="middle" font-size="13" font-weight="600" fill="#172033">Clients</text><text x="65.0" y="137.0" text-anchor="middle" font-size="10.5" font-family="ui-monospace,Menlo,monospace" fill="#64748B">HTTPS</text><rect x="175" y="80" width="170" height="86" rx="7" fill="#EFF5FF" stroke="#2563EB" stroke-width="1.5"/><text x="260.0" y="121.0" text-anchor="middle" font-size="13" font-weight="600" fill="#172033">BIG-IP LTM</text><text x="260.0" y="137.0" text-anchor="middle" font-size="10.5" font-family="ui-monospace,Menlo,monospace" fill="#64748B">vs_app 10.1.10.100:443</text><text x="260" y="155" text-anchor="middle" font-size="10" fill="#64748B" font-weight="400" font-family="ui-monospace,Menlo,monospace">self IP 10.1.20.5</text><rect x="430" y="20" width="170" height="56" rx="7" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5"/><text x="515.0" y="46.0" text-anchor="middle" font-size="13" font-weight="600" fill="#172033">web-01 (Nginx)</text><text x="515.0" y="62.0" text-anchor="middle" font-size="10.5" font-family="ui-monospace,Menlo,monospace" fill="#64748B">10.1.20.11:80</text><rect x="430" y="170" width="170" height="56" rx="7" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5"/><text x="515.0" y="196.0" text-anchor="middle" font-size="13" font-weight="600" fill="#172033">web-02 (Nginx)</text><text x="515.0" y="212.0" text-anchor="middle" font-size="10.5" font-family="ui-monospace,Menlo,monospace" fill="#64748B">10.1.20.12:80</text><line x1="120" y1="123" x2="173" y2="123" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arr)"/><line x1="345" y1="108" x2="428" y2="52" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arr)"/><line x1="345" y1="138" x2="428" y2="194" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arr)"/><text x="395" y="120" text-anchor="middle" font-size="10.5" fill="#2563EB" font-weight="400" font-family="ui-monospace,Menlo,monospace">mon_app_http</text><text x="395" y="135" text-anchor="middle" font-size="10.5" fill="#2563EB" font-weight="400" font-family="ui-monospace,Menlo,monospace">GET /health</text><text x="700" y="110" text-anchor="middle" font-size="11" fill="#172033" font-weight="600" font-family="ui-monospace,Menlo,monospace">pool_app_http</text><text x="700" y="127" text-anchor="middle" font-size="11" fill="#B91C1C" font-weight="400" font-family="ui-monospace,Menlo,monospace">both members: DOWN</text></svg></div><figcaption>Figure 1 — Fictional environment. The monitor runs from the BIG-IP self IP on the server VLAN.</figcaption></figure><div class="table-wrap"><table><thead><tr><th scope="col">Object</th><th scope="col">Value</th></tr></thead><tbody><tr><td>Virtual server</td><td><code>vs_app_https</code> — 10.1.10.100:443, client SSL profile</td></tr><tr><td>Pool</td><td><code>pool_app_http</code> — 10.1.20.11:80, 10.1.20.12:80</td></tr><tr><td>Monitor</td><td><code>mon_app_http</code> (custom HTTP)</td></tr><tr><td>Servers</td><td>Nginx with <code>server_name app.example.internal</code>; a separate default server returns 404</td></tr></tbody></table></div>
+<h2><span class="num">04</span>Symptoms</h2>
+
+<ul>
+<li><code>tmsh show ltm pool pool_app_http</code> shows both members <strong>offline (red)</strong>.</li>
+<li>Clients connecting to the virtual server receive a TCP reset.</li>
+<li><code>http://app.example.internal/health</code> returns <code>200 OK</code> in a browser on the server VLAN.</li>
+<li>The servers' firewall and ports are unchanged; TCP connections from the BIG-IP to port 80 succeed.</li>
+</ul>
+
+<h2><span class="num">05</span>Possible Causes</h2>
+<div class="table-wrap"><table><thead><tr><th scope="col">Hypothesis</th><th scope="col">How to test</th></tr></thead><tbody><tr><td>No route or ACL between the self IP and the members</td><td>TCP connect from BIG-IP to member:80</td></tr><tr><td>Health endpoint actually failing</td><td>Request /health directly with the correct Host header</td></tr><tr><td>Monitor send string not what the server expects</td><td>Replay the exact send string from the BIG-IP</td></tr><tr><td>Receive string does not match the response</td><td>Compare the raw response with the regex</td></tr></tbody></table></div>
+<h2><span class="num">06</span>Troubleshooting Methodology</h2>
+
+<ol class="steps">
+<li><strong>Read the monitor log.</strong> <code>/var/log/ltm</code> records each state change and, on current versions, the last error.</li>
+<li><strong>Read the monitor configuration.</strong> Note the exact send and receive strings.</li>
+<li><strong>Reproduce from the BIG-IP.</strong> Send the identical request from the same source the monitor uses. A browser test is not equivalent.</li>
+<li><strong>Capture the monitor traffic</strong> to see the real request and response on the wire.</li>
+<li><strong>Change one thing,</strong> then confirm the member state and log.</li>
+</ol>
+
+<h2><span class="num">07</span>Commands and Tools</h2>
+<div class="code-block"><div class="code-head"><span>bash — BIG-IP advanced shell</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-bash"># Pool member state
+tmsh show ltm pool pool_app_http members
+
+# Monitor definition
+tmsh list ltm monitor http mon_app_http
+
+# Monitor state changes
+grep -i &quot;monitor status&quot; /var/log/ltm | tail -n 5
+
+# Replay the monitor&#x27;s exact request (no Host header, HTTP/1.0)
+printf &#x27;GET /health HTTP/1.0\r\n\r\n&#x27; | nc 10.1.20.11 80
+
+# Same request with a Host header, HTTP/1.1
+printf &#x27;GET /health HTTP/1.1\r\nHost: app.example.internal\r\nConnection: close\r\n\r\n&#x27; | nc 10.1.20.11 80
+
+# Capture monitor traffic on all interfaces, with payload
+tcpdump -nni 0.0:nnn -s0 -A &#x27;host 10.1.20.11 and port 80&#x27;</code></pre></div><div class="callout callout-note" role="note"><span class="callout-title">Why not curl?</span><p><code>curl</code> always adds a Host header, even with <code>-0</code> (HTTP/1.0). To reproduce a monitor exactly, send the raw bytes with <code>printf | nc</code>.</p></div>
+<h2><span class="num">08</span>Packet Capture / Log Analysis</h2>
+<div class="code-block"><div class="code-head"><span>tmsh list — fictional</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-text">ltm monitor http mon_app_http {
+    defaults-from http
+    destination *:*
+    interval 5
+    timeout 16
+    recv &quot;200 OK&quot;
+    send &quot;GET /health HTTP/1.0\r\n\r\n&quot;
+}</code></pre></div><div class="code-block"><div class="code-head"><span>/var/log/ltm — fictional</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-text">Nov 12 10:42:17 bigip1 notice mcpd[6821]: 01070638:5: Pool /Common/pool_app_http member /Common/10.1.20.11:80 monitor status down. [ /Common/mon_app_http: down; last error: /Common/mon_app_http: Response Code: 404 (Not Found) ]</code></pre></div><div class="code-block"><div class="code-head"><span>replay — fictional</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-text">$ printf &#x27;GET /health HTTP/1.0\r\n\r\n&#x27; | nc 10.1.20.11 80
+HTTP/1.1 404 Not Found
+Server: nginx
+Content-Type: text/html
+Connection: close
+
+$ printf &#x27;GET /health HTTP/1.1\r\nHost: app.example.internal\r\nConnection: close\r\n\r\n&#x27; | nc 10.1.20.11 80
+HTTP/1.1 200 OK
+Server: nginx
+Content-Type: application/json
+Connection: close
+
+{&quot;status&quot;:&quot;ok&quot;}</code></pre></div>
+<p>The evidence is conclusive: the same server returns 404 without a Host header and 200 with one. The tcpdump output shows the identical behaviour for the monitor's own probes.</p>
+
+<h2><span class="num">09</span>Root Cause</h2>
+
+<p>The monitor sent an HTTP/1.0 request with no <code>Host</code> header. Nginx routed it to the default server block, which returns 404 for every path. The receive string <code>200 OK</code> never matched, so the monitor marked every member down. The application itself was healthy.</p>
+
+<h2><span class="num">10</span>Resolution</h2>
+<div class="code-block"><div class="code-head"><span>bash — BIG-IP</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-bash">tmsh modify ltm monitor http mon_app_http \
+  send &quot;GET /health HTTP/1.1\r\nHost: app.example.internal\r\nConnection: Close\r\n\r\n&quot; \
+  recv &quot;^HTTP/1\.[01] 200&quot;
+
+tmsh save sys config</code></pre></div>
+<ul>
+<li>The request is now HTTP/1.1 with the correct Host header.</li>
+<li><code>Connection: Close</code> stops the member holding the monitor connection open.</li>
+<li>The receive string is anchored to the status line. A bare <code>200</code> would also match a 404 page that contains “200” anywhere in its body.</li>
+</ul>
+<div class="callout callout-warning" role="note"><span class="callout-title">Change control</span><p>A monitor change affects every pool that uses it. Check usage first with <code>tmsh list ltm pool one-line | grep mon_app_http</code>, and make the change in an approved window.</p></div>
+<h2><span class="num">11</span>Validation</h2>
+<div class="code-block"><div class="code-head"><span>output — fictional</span><button class="copy-btn" type="button">Copy</button></div><pre><code class="language-text">$ tmsh show ltm pool pool_app_http members | grep -E &quot;Ltm::Pool Member|Availability&quot;
+Ltm::Pool Member: 10.1.20.11:80
+  Availability : available
+Ltm::Pool Member: 10.1.20.12:80
+  Availability : available
+
+$ grep -i &quot;monitor status&quot; /var/log/ltm | tail -n 2
+... member /Common/10.1.20.11:80 monitor status up. [ /Common/mon_app_http: up ] ...
+... member /Common/10.1.20.12:80 monitor status up. [ /Common/mon_app_http: up ] ...</code></pre></div>
+<p>The virtual server returned to <em>available</em>, and test requests through 10.1.10.100 were distributed across both members.</p>
+
+<h2><span class="num">12</span>Key Takeaways</h2>
+
+<ul>
+<li>A browser test is not a monitor test. Reproduce the monitor's exact bytes from the BIG-IP.</li>
+<li>Use HTTP/1.1 with a Host header for monitors in front of name-based virtual hosts.</li>
+<li>Anchor receive strings to the status line.</li>
+<li><code>/var/log/ltm</code> usually contains the answer. Read it first.</li>
+</ul>
+
+<h2><span class="num">13</span>References</h2>
+<ol><li><a href="https://www.rfc-editor.org/rfc/rfc9112" rel="noopener">RFC 9112 — HTTP/1.1 (Host header requirement)</a></li><li><a href="https://nginx.org/en/docs/http/request_processing.html" rel="noopener">nginx — How nginx processes a request (default server selection)</a></li><li><a href="https://techdocs.f5.com/" rel="noopener">F5 BIG-IP product documentation</a></li></ol>
+      <ul class="tag-list" aria-label="Tags"><li>F5 LTM</li><li>Health Monitors</li><li>HTTP</li><li>Nginx</li><li>Troubleshooting</li></ul>
+      <nav class="prev-next" aria-label="More" data-render="prev-next" data-type="articles"></nav>
+    </article>
+  </div>
+</div>
+<section class="related" aria-labelledby="related-h">
+  <div class="container">
+    <h2 id="related-h">Related articles</h2>
+    <div class="grid grid-3" data-render="related"></div>
+  </div>
+</section>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#17263B"/><g stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round"><path d="M16 9v6M16 15l-6 6M16 15l6 6"/></g><circle cx="16" cy="8" r="3" fill="#3B82F6"/><circle cx="9" cy="22.5" r="2.6" fill="#E6EDF7"/><circle cx="23" cy="22.5" r="2.6" fill="#E6EDF7"/></svg><span class="brand-name">The <span>TAC</span> Engineer</span></a>
+        <p class="footer-tagline">Understand the Problem. Analyse the Evidence. Find the Root Cause.</p>
+      </div>
+      <div>
+        <h2>Explore</h2>
+        <ul>
+          <li><a href="../about.html">About</a></li>
+          <li><a href="../articles/index.html">Technical Articles</a></li>
+          <li><a href="../labs/index.html">Labs</a></li>
+          <li><a href="../cases/index.html">Troubleshooting Cases</a></li>
+          <li><a href="../projects/index.html">Projects</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Connect</h2>
+        <ul>
+          <li><a href="../contact.html">Contact</a></li>
+          <li><a href="../contact.html" data-site="linkedin" rel="noopener">LinkedIn</a></li>
+          <li><a href="../contact.html" data-site="github" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> The TAC Engineer. All rights reserved.</span>
+      <span>Examples on this site are fictional or sanitised. No customer or employer data is published.</span>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/content.js"></script>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>
