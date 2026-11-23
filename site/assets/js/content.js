@@ -34,6 +34,15 @@ window.CATEGORIES = [
 
 /* ---------------------------- TECHNICAL ARTICLES ------------------------- */
 window.ARTICLES = [
+  {
+    title: "F5 BIG-IP Software Upgrade: Standalone and HA Pair",
+    url: "articles/f5-big-ip-software-upgrade.html",
+    category: "f5",
+    date: "2026-11-23",
+    excerpt: "Step-by-step BIG-IP upgrade from 17.5 to 21.1 in the Configuration utility: UCS backup, image install, license reactivation, boot location activation and HA sequencing.",
+    tags: ["F5 LTM", "BIG-IP", "Upgrade", "High Availability"],
+    demo: false
+  },
   // Add your articles here. Example:
   // {
   //   title: "My Article Title",
