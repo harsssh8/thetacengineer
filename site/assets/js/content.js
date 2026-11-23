@@ -19,9 +19,9 @@ window.SITE = {
   name: "The TAC Engineer",
   tagline: "Understand the Problem. Analyse the Evidence. Find the Root Cause.",
   // ---- EDIT THESE THREE LINES ----
-  email: "you@example.com",
-  linkedin: "https://www.linkedin.com/in/your-profile/",
-  github: "https://github.com/your-username"
+  email: "harshkadu312@gmail.com",
+  linkedin: "https://www.linkedin.com/in/harshcybersecurity/",
+  github: ""   // add your GitHub profile URL here, e.g. "https://github.com/yourname" (links stay hidden while empty)
 };
 
 /* Category names must match exactly across articles, labs and cases. */
@@ -34,33 +34,16 @@ window.CATEGORIES = [
 
 /* ---------------------------- TECHNICAL ARTICLES ------------------------- */
 window.ARTICLES = [
-  {
-    title: "Investigating TCP Retransmissions with Wireshark",
-    url: "articles/tcp-retransmissions-wireshark.html",
-    category: "networking",
-    date: "2026-11-20",
-    excerpt: "Small requests work but large transfers stall. A step-by-step walk through retransmission analysis that ends at a Path MTU black hole.",
-    tags: ["TCP/IP", "Wireshark", "Troubleshooting"],
-    demo: true
-  },
-  {
-    title: "F5 BIG-IP: Pool Member Marked Down by an HTTP Monitor",
-    url: "articles/f5-http-monitor-member-down.html",
-    category: "f5",
-    date: "2026-11-14",
-    excerpt: "The application answers in a browser, yet BIG-IP marks every pool member down. Why the monitor send string and Host header matter.",
-    tags: ["F5 LTM", "HTTP", "Troubleshooting"],
-    demo: true
-  },
-  {
-    title: "TLS Handshake Failures: Reading the Alert",
-    url: "articles/tls-handshake-unknown-ca.html",
-    category: "networking",
-    date: "2026-11-08",
-    excerpt: "Browsers connect, API clients fail. Using openssl s_client and Wireshark to find an incomplete certificate chain.",
-    tags: ["TLS", "Wireshark", "Security"],
-    demo: true
-  }
+  // Add your articles here. Example:
+  // {
+  //   title: "My Article Title",
+  //   url: "articles/my-article.html",
+  //   category: "networking",        // networking | f5 | linux | cloud
+  //   date: "2026-11-23",
+  //   excerpt: "One or two sentences for the article card.",
+  //   tags: ["DNS", "Troubleshooting"],
+  //   demo: false
+  // },
 ];
 
 /* ---------------------------- HANDS-ON LABS ------------------------------
