@@ -155,12 +155,13 @@ window.CASES = [
 
 /* -------------------------------- PROJECTS ------------------------------- */
 window.PROJECTS = [
-  {
-    title: "The TAC Engineer — Technical Publication Site",
-    url: "projects/the-tac-engineer-website.html",
-    status: "progress",
-    excerpt: "Design and build of this site: a static, dependency-free technical publication hosted on Cloudflare.",
-    tech: ["HTML", "CSS", "JavaScript", "Cloudflare", "Git"],
-    github: ""   // add your repository URL when public
-  }
+  // Add your projects here. Example:
+  // {
+  //   title: "My Project",
+  //   url: "projects/my-project.html",
+  //   status: "progress",            // planned | progress | completed
+  //   excerpt: "One or two sentences for the project card.",
+  //   tech: ["Linux", "Nginx"],
+  //   github: "https://github.com/you/repo"
+  // },
 ];
