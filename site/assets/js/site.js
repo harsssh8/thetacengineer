@@ -60,6 +60,7 @@
     var key = el.getAttribute("data-site");
     if (key === "email" && SITE.email) { el.href = "mailto:" + SITE.email; if (el.hasAttribute("data-site-text")) el.textContent = SITE.email; }
     else if (SITE[key]) { el.href = SITE[key]; if (el.hasAttribute("data-site-text")) el.textContent = SITE[key].replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""); }
+    else if (el.tagName === "A") { var box = el.closest("li") || el.closest("p") || el; box.hidden = true; }
   });
   $all("[data-year]").forEach(function (el) { el.textContent = new Date().getFullYear(); });
 
@@ -107,7 +108,7 @@
   var renderers = {
     "latest-articles": function (el) {
       var n = parseInt(el.getAttribute("data-limit") || "3", 10);
-      el.innerHTML = ARTICLES.length ? ARTICLES.slice(0, n).map(articleCard).join("") : empty("Articles coming soon.");
+      el.innerHTML = ARTICLES.length ? ARTICLES.slice(0, n).map(articleCard).join("") : empty("New articles are on the way. Check back soon.");
     },
     "featured-labs": function (el) {
       var f = LABS.filter(function (l) { return l.featured; }).slice(0, 3);
@@ -196,8 +197,8 @@
         return q.split(/\s+/).every(function (w) { return hay.indexOf(w) > -1; });
       });
       if (chipsBox) $all("button", chipsBox).forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-cat") === active ? "true" : "false"); });
-      el.innerHTML = res.length ? res.map(cardFn).join("") : empty("No " + noun + " match your search.");
-      if (countEl) countEl.textContent = res.length + " of " + items.length + " " + noun;
+      el.innerHTML = res.length ? res.map(cardFn).join("") : empty(items.length ? "No " + noun + " match your search." : "New " + noun + " are on the way. Check back soon.");
+      if (countEl) countEl.textContent = items.length ? res.length + " of " + items.length + " " + noun : "";
     }
     draw();
   }
